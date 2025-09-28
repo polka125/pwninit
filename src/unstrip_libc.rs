@@ -63,9 +63,11 @@ fn do_unstrip_libc(libc: &Path, ver: &LibcVersion) -> Result {
         let build_id = elf::get_build_id(libc).context(ElfParseSnafu)?;
         build_id.chars().skip(2).collect::<String>() + ".debug"
     };
-
-    let file_names: Vec<&str> = vec![&name1, &name2];
-    libc_deb::write_ubuntu_pkg_file(&deb_file_name, &file_names, &sym_path).context(DebSnafu)?;
+    
+    libc_deb::write_ubuntu_pkg_file(&deb_file_name, &name1, &sym_path).context(DebSnafu)
+    .or_else(|_| {
+        libc_deb::write_ubuntu_pkg_file(&deb_file_name, &name2, &sym_path).context(DebSnafu)
+    })?;
 
     let out = Command::new("eu-unstrip")
         .arg(libc)

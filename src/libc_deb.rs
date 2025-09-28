@@ -96,7 +96,7 @@ fn request_ubuntu_pkg(deb_file_name: &str) -> Result<reqwest::blocking::Response
 /// extract the file.
 pub fn write_ubuntu_pkg_file<P: AsRef<Path>>(
     deb_file_name: &str,
-    file_names: &Vec<&str>,
+    file_name: &str,
     out_path: P,
 ) -> Result<()> {
     let out_path = out_path.as_ref();
@@ -119,28 +119,28 @@ pub fn write_ubuntu_pkg_file<P: AsRef<Path>>(
             .extension()
             .map(OsStr::as_bytes)
             .context(DataNotFoundSnafu)?;
-        for file_name in file_names {
-            match ext {
-                b"gz" => {
-                    let data = GzDecoder::new(entry);
-                    write_ubuntu_data_tar_file(data, file_name, out_path)
-                }
-                b"xz" => {
-                    let data = LzmaReader::new_decompressor(entry).context(DataUnzipLzmaSnafu)?;
-                    write_ubuntu_data_tar_file(data, file_name, out_path)
-                }
-                b"zst" => {
-                    let data = zstd::stream::read::Decoder::new(entry).context(DataUnzipZstdSnafu)?;
-                    write_ubuntu_data_tar_file(data, file_name, out_path)
-                }
-                ext => None.context(DataExtSnafu { ext }),
-            }?;
-            return Ok(());
-        }        
+        match ext {
+            b"gz" => {
+                let data = GzDecoder::new(entry);
+                write_ubuntu_data_tar_file(data, file_name, out_path)
+            }
+            b"xz" => {
+                let data = LzmaReader::new_decompressor(entry).context(DataUnzipLzmaSnafu)?;
+                write_ubuntu_data_tar_file(data, file_name, out_path)
+            }
+            b"zst" => {
+                let data = zstd::stream::read::Decoder::new(entry).context(DataUnzipZstdSnafu)?;
+                write_ubuntu_data_tar_file(data, file_name, out_path)
+            }
+            ext => None.context(DataExtSnafu { ext }),
+        }?;
+
+        return Ok(());
     }
 
     Err(Error::DataNotFound)
 }
+
 /// Given the bytes of a data.tar in a glibc deb package, find a file inside it,
 /// and extract the file.
 fn write_ubuntu_data_tar_file<R: Read>(
